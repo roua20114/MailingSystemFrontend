@@ -66,6 +66,13 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   }
 
   const data = await res.json();
-  if (!res.ok) throw new Error(data?.message ?? `API error ${res.status}`);
+  if (!res.ok) {
+    // Surface field-level validation errors (422) as a readable message
+    if (res.status === 422 && Array.isArray(data?.errors) && data.errors.length > 0) {
+      const details = data.errors.map((e: { field: string; message: string }) => `${e.field}: ${e.message}`).join(' | ');
+      throw new Error(`${data.message}: ${details}`);
+    }
+    throw new Error(data?.message ?? `API error ${res.status}`);
+  }
   return data as T;
 }

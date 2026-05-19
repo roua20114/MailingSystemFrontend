@@ -1,4 +1,5 @@
-import { Search, Bell, Moon, Sun, Sparkles, LogOut, User } from 'lucide-react';
+import { Search, Moon, Sun, Sparkles, LogOut, User } from 'lucide-react';
+import { NotificationBell } from '@/components/NotificationBell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -46,10 +47,7 @@ export function TopNavbar() {
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
-          <Bell className="h-4 w-4" />
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">3</span>
-        </Button>
+        <NotificationBell />
         <Button variant="ghost" size="icon" onClick={toggleDark} aria-label="Thème">
           {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>

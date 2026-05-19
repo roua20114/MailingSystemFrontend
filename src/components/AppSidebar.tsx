@@ -1,4 +1,4 @@
-import { LayoutDashboard, Inbox, Send, ArrowLeftRight, BarChart3, Settings, FileSearch, Sparkles, Mail, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, Inbox, Send, ArrowLeftRight, BarChart3, Settings, FileSearch, Sparkles, Mail, ClipboardCheck, Archive } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import {
@@ -13,7 +13,8 @@ const mainNav = [
   { title: 'Courrier Entrant', url: '/incoming', icon: Inbox },
   { title: 'Courrier Sortant', url: '/outgoing', icon: Send },
   { title: 'Courrier Interne', url: '/internal', icon: ArrowLeftRight },
-  { title: 'Mon Suivi', url: '/tracking', icon: FileSearch },
+  { title: 'Mon Suivi',        url: '/tracking',  icon: FileSearch },
+  { title: 'Archives',         url: '/archives',  icon: Archive },
 ];
 
 const secondaryNav = [

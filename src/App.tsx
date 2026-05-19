@@ -10,6 +10,7 @@ import IncomingMail from "./pages/IncomingMail";
 import OutgoingMail from "./pages/OutgoingMail";
 import InternalMail from "./pages/InternalMail";
 import MailTracking from "./pages/MailTracking";
+import Archives from "./pages/Archives";
 import Statistics from "./pages/Statistics";
 import SettingsPage from "./pages/Settings";
 import DirectorInbox from "./pages/DirectorInbox";
@@ -40,6 +41,7 @@ const App = () => (
                       <Route path="/outgoing" element={<OutgoingMail />} />
                       <Route path="/internal" element={<InternalMail />} />
                       <Route path="/tracking" element={<MailTracking />} />
+                      <Route path="/archives" element={<Archives />} />
                       <Route path="/statistics" element={<Statistics />} />
                       <Route path="/settings" element={<SettingsPage />} />
                       <Route path="*" element={<NotFound />} />

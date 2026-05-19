@@ -65,7 +65,7 @@ export default function UsersRolesTab() {
     mutationFn: () => userService.create({
       name: form.name, email: form.email, password: form.password,
       role: toBackendRole(form.role as string),
-      departmentId: form.departmentId || undefined,
+      departmentId: (form.departmentId && form.departmentId !== 'none') ? form.departmentId : undefined,
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); toast.success('Utilisateur créé'); setDialogOpen(false); },
     onError: (e: Error) => toast.error('Erreur', { description: e.message }),
@@ -115,8 +115,12 @@ export default function UsersRolesTab() {
   };
 
   const handleSave = () => {
-    if (!form.name.trim() || !form.email.trim() || !form.role || !form.departmentId) {
+    if (!form.name.trim() || !form.email.trim() || !form.role) {
       toast.error('Tous les champs obligatoires doivent être remplis'); return;
+    }
+    // departmentId is required for non-Admin roles only
+    if (form.role !== 'admin' && !form.departmentId) {
+      toast.error('Veuillez sélectionner un département'); return;
     }
     if (!editingId && !form.password) { toast.error('Le mot de passe est requis pour un nouveau compte'); return; }
     if (editingId) updateMutation.mutate();
@@ -220,10 +224,10 @@ export default function UsersRolesTab() {
           <div className="space-y-4">
             <div><Label>Nom complet *</Label><Input className="mt-1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
             <div><Label>Email *</Label><Input className="mt-1" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
-            <div><Label>{editingId ? 'Nouveau mot de passe (optionnel)' : 'Mot de passe *'}</Label><Input className="mt-1" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Min. 8 car. avec majuscule et chiffre" /></div>
+            <div><Label>{editingId ? 'Nouveau mot de passe (optionnel)' : 'Mot de passe *'}</Label><Input className="mt-1" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Min. 8 car., 1 majuscule, 1 chiffre" /></div>
             <div>
               <Label>Rôle *</Label>
-              <Select value={form.role} onValueChange={v => setForm(f => ({ ...f, role: v as UserRole }))}>
+              <Select value={form.role} onValueChange={v => setForm(f => ({ ...f, role: v as UserRole, departmentId: '' }))}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Sélectionner un rôle" /></SelectTrigger>
                 <SelectContent>
                   {(Object.entries(roleLabels) as [UserRole, string][]).map(([r, label]) => (
@@ -233,10 +237,11 @@ export default function UsersRolesTab() {
               </Select>
             </div>
             <div>
-              <Label>Département *</Label>
+              <Label>Département {form.role === 'admin' ? '(optionnel)' : '*'}</Label>
               <Select value={form.departmentId} onValueChange={v => setForm(f => ({ ...f, departmentId: v }))}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Sélectionner un département" /></SelectTrigger>
                 <SelectContent>
+                  {form.role === 'admin' && <SelectItem value="none">— Aucun —</SelectItem>}
                   {departments.map(d => <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>)}
                 </SelectContent>
               </Select>
