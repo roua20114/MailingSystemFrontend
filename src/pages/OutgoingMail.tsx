@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sparkles, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StatusBadge, PriorityBadge } from '@/components/StatusBadge';
@@ -34,6 +35,17 @@ export default function OutgoingMail() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
+          <Breadcrumb className="mb-3">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/">Accueil</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Courrier Sortant</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
           <h1 className="text-2xl font-bold tracking-tight">Courrier Sortant</h1>
           <p className="text-sm text-muted-foreground">{outgoingData?.total ?? 0} courriers envoyés</p>
         </div>
@@ -66,7 +78,7 @@ export default function OutgoingMail() {
                     <TableCell className="font-mono text-xs font-semibold">{mail.referenceNumber}</TableCell>
                     <TableCell className="text-xs">{formatDate(mail.createdAt)}</TableCell>
                     <TableCell className="max-w-[200px] truncate text-xs">{mail.subject}</TableCell>
-                    <TableCell className="text-xs">{mail.sender}</TableCell>
+                    <TableCell className="text-xs">{typeof mail.sender === 'string' ? mail.sender : mail.sender?.name ?? 'Inconnu'}</TableCell>
                     <TableCell className="text-xs">{mail.assignedDepartment?.name ?? '—'}</TableCell>
                     <TableCell className="text-xs">{mail.assignedTo?.name ?? '—'}</TableCell>
                     <TableCell><PriorityBadge priority={mail.priority} /></TableCell>

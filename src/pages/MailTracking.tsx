@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FileSearch, FileText, Clock, User, Building2, MessageSquare, PlayCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge, PriorityBadge } from '@/components/StatusBadge';
 import { MailStatusStepper } from '@/components/MailStatusStepper';
@@ -163,7 +164,7 @@ export default function MailTracking() {
                   <div className="flex items-center gap-2 text-xs">
                     <User className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="text-muted-foreground w-28">Expéditeur</span>
-                    <span className="font-medium">{selected.sender}</span>
+                    <span className="font-medium">{typeof selected.sender === 'string' ? selected.sender : selected.sender?.name ?? 'Inconnu'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs">
                     <Building2 className="h-3.5 w-3.5 text-muted-foreground" />

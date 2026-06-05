@@ -7,9 +7,10 @@ export type ApiMailPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 export interface ApiMail {
   _id: string;
   referenceNumber: string;
+  manualReference?: string | null;   // ← référence saisie manuellement
   type: ApiMailType;
   subject: string;
-  sender: string;
+  sender: string | { _id: string; name: string; email?: string; role?: string };
   status: ApiMailStatus;
   priority: ApiMailPriority;
   description?: string;
@@ -24,6 +25,8 @@ export interface ApiMail {
   aiConfidenceScore?: number | null;
   slaDeadline?: string | null;
   isOverdue?: boolean;
+  inboxMailId?: string | null;
+  responses?: Array<{ _id: string; referenceNumber: string; subject: string }>;
   statusHistory?: Array<{
     status: string;
     changedBy?: { _id: string; name: string };
@@ -68,13 +71,15 @@ interface CreateMailPayload {
   description?: string;
   category?: string;
   pdfUrl?: string;
+  inboxMailId?: string;
+  manualReference?: string;   // ← référence administrative saisie manuellement (optionnelle)
 }
 
 interface AssignMailPayload {
-  assignedTo: string;                // required — 24-char MongoDB ObjectId
-  assignedDepartment?: string;       // optional
-  instructions?: string;             // optional (backend no longer requires it)
-  priority?: ApiMailPriority;        // optional override
+  assignedTo: string;
+  assignedDepartment?: string;
+  instructions?: string;
+  priority?: ApiMailPriority;
 }
 
 export const mailService = {
@@ -90,16 +95,18 @@ export const mailService = {
   },
 
   async create(payload: CreateMailPayload): Promise<ApiMail> {
-    // Strip any undefined/empty optional fields before sending
     const body: Record<string, unknown> = {
-      subject: payload.subject,
-      sender: payload.sender,
-      type: payload.type,
+      subject:  payload.subject,
+      sender:   payload.sender,
+      type:     payload.type,
       priority: payload.priority ?? 'Medium',
     };
-    if (payload.description) body.description = payload.description;
-    if (payload.category) body.category = payload.category;
-    if (payload.pdfUrl) body.pdfUrl = payload.pdfUrl;
+    if (payload.description)     body.description     = payload.description;
+    if (payload.category)        body.category        = payload.category;
+    if (payload.pdfUrl)          body.pdfUrl          = payload.pdfUrl;
+    if (payload.inboxMailId)     body.inboxMailId     = payload.inboxMailId;
+    // Envoie manualReference seulement si non vide
+    if (payload.manualReference?.trim()) body.manualReference = payload.manualReference.trim();
 
     const res = await apiRequest<SingleResponse<ApiMail>>('/mails', {
       method: 'POST',
@@ -119,10 +126,9 @@ export const mailService = {
   },
 
   async assign(id: string, payload: AssignMailPayload): Promise<ApiMail> {
-    // Build clean body — only send defined, non-empty values
     const body: Record<string, unknown> = { assignedTo: payload.assignedTo };
     if (payload.assignedDepartment) body.assignedDepartment = payload.assignedDepartment;
-    if (payload.instructions && payload.instructions.trim()) body.instructions = payload.instructions.trim();
+    if (payload.instructions?.trim()) body.instructions = payload.instructions.trim();
     if (payload.priority) body.priority = payload.priority;
 
     const res = await apiRequest<SingleResponse<ApiMail>>(`/mails/${id}/assign`, {

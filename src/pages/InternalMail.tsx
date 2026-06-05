@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ArrowRight, Eye, CheckCircle2 } from 'lucide-react';
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { StatusBadge, PriorityBadge } from '@/components/StatusBadge';
 import { MailStatusStepper } from '@/components/MailStatusStepper';
@@ -24,6 +25,17 @@ export default function InternalMail() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
+          <Breadcrumb className="mb-3">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/">Accueil</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Courrier Interne</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
           <h1 className="text-2xl font-bold tracking-tight">Courrier Interne</h1>
           <p className="text-sm text-muted-foreground">Circulation entre services</p>
         </div>
@@ -53,7 +65,7 @@ export default function InternalMail() {
               <CardContent className="space-y-4">
                 <p className="text-sm font-medium">{mail.subject}</p>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <span className="rounded-lg bg-muted px-2.5 py-1 font-medium">{mail.sender}</span>
+                  <span className="rounded-lg bg-muted px-2.5 py-1 font-medium">{typeof mail.sender === 'string' ? mail.sender : mail.sender?.name ?? 'Inconnu'}</span>
                   <ArrowRight className="h-3 w-3 text-primary" />
                   <span className="rounded-lg bg-muted px-2.5 py-1 font-medium">
                     {mail.assignedDepartment?.name ?? mail.assignedTo?.name ?? 'Non assigné'}

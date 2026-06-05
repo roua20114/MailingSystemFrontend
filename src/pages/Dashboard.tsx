@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { mailService } from '@/lib/mail-service';
 import { formatDate } from '@/lib/data-helpers';
 import { DashboardSkeleton } from '@/components/LoadingSkeleton';
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
 
 const PIE_COLORS = [
   'hsl(217, 91%, 60%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)',
@@ -64,8 +65,19 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
+          <Breadcrumb className="mb-3">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/">Accueil</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Tableau de bord</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">Bonjour, {firstName} 👋</h1>
             {user && (
@@ -204,7 +216,7 @@ export default function Dashboard() {
                   <TableRow key={mail._id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate('/dispatch')}>
                     <TableCell className="font-mono text-xs font-semibold">{mail.referenceNumber}</TableCell>
                     <TableCell className="max-w-[250px] truncate text-xs">{mail.subject}</TableCell>
-                    <TableCell className="text-xs">{mail.sender}</TableCell>
+                    <TableCell className="text-xs">{typeof mail.sender === 'string' ? mail.sender : mail.sender?.name ?? 'Inconnu'}</TableCell>
                     <TableCell className="text-xs font-medium">{formatDate(mail.slaDeadline)}</TableCell>
                     <TableCell><PriorityBadge priority={mail.priority} /></TableCell>
                     <TableCell><StatusBadge status={mail.status} /></TableCell>

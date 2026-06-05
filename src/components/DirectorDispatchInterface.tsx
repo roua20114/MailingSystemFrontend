@@ -54,7 +54,7 @@ export default function DirectorDispatchInterface() {
                 </div>
                 <p className="text-xs font-medium text-foreground truncate mb-1">{mail.subject}</p>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground">{mail.sender}</span>
+                  <span className="text-[10px] text-muted-foreground">{typeof mail.sender === 'string' ? mail.sender : mail.sender?.name ?? 'Inconnu'}</span>
                   <StatusBadge status={mail.status} />
                 </div>
                 {mail.priority === 'urgent' && (
@@ -167,7 +167,7 @@ export default function DirectorDispatchInterface() {
                     <div className="flex items-center gap-2 text-xs">
                       <User className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="text-muted-foreground w-20">Expéditeur</span>
-                      <span className="font-medium">{selectedMail.sender}</span>
+                      <span className="font-medium">{typeof selectedMail.sender === 'string' ? selectedMail.sender : selectedMail.sender?.name ?? 'Inconnu'}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
                       <Clock className="h-3.5 w-3.5 text-muted-foreground" />

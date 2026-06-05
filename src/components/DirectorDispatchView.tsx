@@ -117,7 +117,7 @@ export function DirectorDispatchView({ mail, open, onClose }: Props) {
             <div className="rounded-xl border p-4 space-y-2.5">
               <h3 className="text-sm font-semibold mb-1">Détails</h3>
               {[
-                ['Expéditeur', mail.sender],
+                ['Expéditeur', typeof mail.sender === 'string' ? mail.sender : mail.sender?.name ?? 'Inconnu'],
                 ['Type', mail.type],
                 ['Date', formatDate(mail.createdAt)],
                 ['Échéance SLA', mail.slaDeadline ? formatDate(mail.slaDeadline) : 'Calculée automatiquement'],

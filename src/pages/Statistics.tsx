@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, Loader2, FileText, FileSpreadsheet } from 'lucide-react';
@@ -377,6 +378,17 @@ export default function Statistics() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
+          <Breadcrumb className="mb-3">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/">Accueil</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Statistiques</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
           <h1 className="text-2xl font-bold">Statistiques</h1>
           <p className="text-sm text-muted-foreground">
             Analyses et rapports — {totalMails} courriers au total

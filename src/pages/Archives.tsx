@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Archive, Search, Filter, FileText, User, Building2, Clock, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -49,6 +50,17 @@ export default function Archives() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
+          <Breadcrumb className="mb-3">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/">Accueil</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Archives</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
           <h1 className="text-2xl font-bold">Archives</h1>
           <p className="text-sm text-muted-foreground">Tous les courriers traités</p>
         </div>
@@ -122,7 +134,7 @@ export default function Archives() {
                         {TYPE_LABELS[mail.type] ?? mail.type}
                       </span>
                     </TableCell>
-                    <TableCell className="text-sm">{mail.sender}</TableCell>
+                    <TableCell className="text-sm">{typeof mail.sender === 'string' ? mail.sender : mail.sender?.name ?? 'Inconnu'}</TableCell>
                     <TableCell className="max-w-[200px] truncate text-sm">{mail.subject}</TableCell>
                     <TableCell className="text-xs">{mail.assignedDepartment?.name ?? '—'}</TableCell>
                     <TableCell className="text-xs">{mail.assignedTo?.name ?? '—'}</TableCell>
@@ -164,7 +176,7 @@ export default function Archives() {
 
               {/* Details */}
               <div className="grid gap-2.5">
-                <DetailRow icon={User}      label="Expéditeur"   value={selected.sender} />
+                <DetailRow icon={User}      label="Expéditeur"   value={typeof selected.sender === 'string' ? selected.sender : selected.sender?.name ?? 'Inconnu'} />
                 <DetailRow icon={Building2} label="Département"  value={selected.assignedDepartment?.name ?? '—'} />
                 <DetailRow icon={User}      label="Assigné à"    value={selected.assignedTo?.name ?? '—'} />
                 <DetailRow icon={Clock}     label="Échéance SLA" value={formatDate(selected.slaDeadline)} />
