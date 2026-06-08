@@ -15,7 +15,7 @@ import { mailService, type ApiMail } from '@/lib/mail-service';
 import { formatDate, formatDateTime } from '@/lib/data-helpers';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-
+import { Sparkles } from 'lucide-react';
 export default function MailTracking() {
   const [selected, setSelected] = useState<ApiMail | null>(null);
   const [search, setSearch] = useState('');
@@ -69,6 +69,15 @@ export default function MailTracking() {
   const handleStatusChange = (mail: ApiMail, status: 'In Progress' | 'Processed') => {
     statusMutation.mutate({ id: mail._id, status, n: note });
   };
+  const summarizeMutation = useMutation({
+    mutationFn: (id: string) => mailService.summarize(id),
+    onSuccess: (updated) => {
+      setSelected(updated);
+      qc.invalidateQueries({ queryKey: ['mails-tracking'] });
+      toast.success('Résumé IA généré avec succès');
+    },
+    onError: (e: Error) => toast.error('Erreur', { description: e.message }),
+  });
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -257,12 +266,34 @@ export default function MailTracking() {
                 )}
 
                 {/* AI Summary */}
-                {selected.aiSummary && (
-                  <div className="rounded-xl border bg-muted/30 p-4">
-                    <p className="text-xs font-semibold mb-1">Résumé IA</p>
-                    <p className="text-xs text-muted-foreground">{selected.aiSummary}</p>
+                
+                <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold">Résumé IA</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 h-7 text-xs"
+                      onClick={() => summarizeMutation.mutate(selected._id)}
+                      disabled={summarizeMutation.isPending}
+                    >
+                      {summarizeMutation.isPending
+                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                        : <Sparkles className="h-3 w-3" />}
+                      {selected.aiSummary ? 'Régénérer' : 'Générer le résumé'}
+                    </Button>
                   </div>
-                )}
+
+                  {selected.aiSummary ? (
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {selected.aiSummary}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">
+                      Aucun résumé disponible. Cliquez sur "Générer le résumé".
+                    </p>
+                  )}
+                </div>
 
                 {/* PDF */}
                 <div className="rounded-xl border bg-muted/30 p-8 flex flex-col items-center">

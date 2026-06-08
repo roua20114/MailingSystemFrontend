@@ -155,4 +155,10 @@ export const mailService = {
     );
     return res.data.comment;
   },
+  async summarize(id: string): Promise<ApiMail> {
+    const res = await apiRequest<SingleResponse<ApiMail>>(`/mails/${id}/summarize`, {
+      method: 'POST',
+    });
+    return res.data.mail;
+ },
 };
