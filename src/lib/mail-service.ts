@@ -18,6 +18,7 @@ export interface ApiMail {
   pdfUrl?: string;
   assignedTo?: { _id: string; name: string; email: string; role: string } | null;
   assignedDepartment?: { _id: string; name: string } | null;
+  dispatchedTo?: Array<{ _id: string; name: string; description?: string }> | null;
   createdBy?: { _id: string; name: string; email: string };
   category?: { _id: string; name: string } | null;
   aiSummary?: string | null;
@@ -82,6 +83,13 @@ interface AssignMailPayload {
   priority?: ApiMailPriority;
 }
 
+interface DispatchMailPayload {
+  dispatchedTo: string[];          // tableau d'IDs de départements (min 1)
+  assignedTo?: string;             // utilisateur principal (facultatif)
+  instructions?: string;
+  priority?: ApiMailPriority;
+}
+
 export const mailService = {
   async getAll(params?: Record<string, string>): Promise<{ mails: ApiMail[]; total: number; totalPages: number }> {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
@@ -120,6 +128,21 @@ export const mailService = {
     if (note) body.note = note;
     const res = await apiRequest<SingleResponse<ApiMail>>(`/mails/${id}/status`, {
       method: 'PUT',
+      body: JSON.stringify(body),
+    });
+    return res.data.mail;
+  },
+
+  async dispatch(id: string, payload: DispatchMailPayload): Promise<ApiMail> {
+    const body: Record<string, unknown> = {
+      dispatchedTo: payload.dispatchedTo,
+    };
+    if (payload.assignedTo)         body.assignedTo   = payload.assignedTo;
+    if (payload.instructions?.trim()) body.instructions = payload.instructions.trim();
+    if (payload.priority)           body.priority     = payload.priority;
+
+    const res = await apiRequest<SingleResponse<ApiMail>>(`/mails/${id}/dispatch`, {
+      method: 'PATCH',
       body: JSON.stringify(body),
     });
     return res.data.mail;
