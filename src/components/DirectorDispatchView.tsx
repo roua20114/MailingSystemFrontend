@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Sparkles, FileText, Loader2, X, ChevronDown, Check, Building2 } from 'lucide-react';
+import { Sparkles, FileText, Loader2, X, ChevronDown, Check, Building2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +16,8 @@ import { userService } from '@/lib/user-service';
 import { formatDate } from '@/lib/data-helpers';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import * as pdfjsLib from 'pdfjs-dist';
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 // ── Types locaux ──────────────────────────────────────────────────────────────
 interface Department { _id: string; name: string; description?: string; }
@@ -179,6 +181,155 @@ function MultiSelectDept({ departments, selected, onChange, placeholder = 'Séle
     </div>
   );
 }
+function MultiSelectUser({ users, selected, onChange }: {
+  users: Array<{ _id: string; name: string; role: string; departmentId?: unknown }>;
+  selected: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedUsers = users.filter(u => selected.includes(u._id));
+  const available = users.filter(
+    u => !selected.includes(u._id) &&
+         u.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div
+        onClick={() => setOpen(v => !v)}
+        className={cn(
+          'min-h-[36px] w-full rounded-md border border-input bg-background px-3 py-1.5',
+          'flex flex-wrap gap-1.5 items-center cursor-pointer transition-colors',
+          'hover:border-ring/60 focus-within:ring-2 focus-within:ring-ring/30',
+          open && 'ring-2 ring-ring/30 border-ring/60'
+        )}
+      >
+        {selectedUsers.length === 0 ? (
+          <span className="text-xs text-muted-foreground flex-1">Choisir des responsables</span>
+        ) : (
+          selectedUsers.map(u => (
+            <span
+              key={u._id}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-medium border border-primary/20"
+            >
+              {u.name}
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); onChange(selected.filter(id => id !== u._id)); }}
+                className="ml-0.5 rounded-full hover:bg-primary/20 p-0.5"
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            </span>
+          ))
+        )}
+        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-auto flex-shrink-0" />
+      </div>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
+          <div className="p-2 border-b">
+            <input
+              autoFocus
+              className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
+              placeholder="Rechercher..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onClick={e => e.stopPropagation()}
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto p-1">
+            {available.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-3">Aucun utilisateur trouvé</p>
+            ) : (
+              available.map(u => {
+                const deptName = typeof u.departmentId === 'object' && u.departmentId
+                  ? ` · ${(u.departmentId as { name: string }).name}` : '';
+                return (
+                  <button
+                    key={u._id}
+                    type="button"
+                    onClick={e => { e.stopPropagation(); onChange([...selected, u._id]); }}
+                    className="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-accent flex items-center gap-2"
+                  >
+                    <User className="h-3 w-3 text-muted-foreground" />
+                    {u.name} — {u.role}{deptName}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PdfFirstPage({ pdfUrl }: { pdfUrl: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+
+    pdfjsLib.getDocument({ url: pdfUrl }).promise
+      .then(pdf => pdf.getPage(1))
+      .then(page => {
+        if (cancelled || !canvasRef.current) return;
+        const container = canvasRef.current.parentElement!;
+        const containerWidth = container.clientWidth || 280;
+        const viewport = page.getViewport({ scale: 1 });
+        const scale = containerWidth / viewport.width;
+        const scaled = page.getViewport({ scale });
+
+        const canvas = canvasRef.current;
+        canvas.width = scaled.width;
+        canvas.height = scaled.height;
+
+        page.render({
+          canvasContext: canvas.getContext('2d')!,
+          viewport: scaled,
+          canvas: canvas,
+        }).promise.then(() => {
+          if (!cancelled) setLoading(false);
+        });
+      })
+      .catch(() => {
+        if (!cancelled) { setLoading(false); setError(true); }
+      });
+
+    return () => { cancelled = true; };
+  }, [pdfUrl]);
+
+  return (
+    <div className="w-full rounded-lg overflow-hidden border bg-white flex items-center justify-center" style={{ minHeight: '220px' }}>
+      {loading && !error && (
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      )}
+      {error && (
+        <span className="text-xs text-muted-foreground/50">Aperçu indisponible</span>
+      )}
+      <canvas ref={canvasRef} className={`w-full ${loading || error ? 'hidden' : ''}`} />
+    </div>
+  );
+}
 
 // ── Composant principal DirectorDispatchView ──────────────────────────────────
 export function DirectorDispatchView({ mail, open, onClose }: Props) {
@@ -189,7 +340,7 @@ export function DirectorDispatchView({ mail, open, onClose }: Props) {
   // dispatchedTo : tableau d'IDs de départements (PATCH /api/mails/:id/dispatch)
   const [dispatchedTo, setDispatchedTo] = useState<string[]>([]);
   // assignedTo  : ID optionnel d'un utilisateur principal
-  const [assignedTo, setAssignedTo] = useState('');
+  const [assignedTo, setAssignedTo] = useState<string[]>([]);
   const [instructions, setInstructions] = useState('');
   const [priority, setPriority] = useState('');
 
@@ -214,7 +365,11 @@ export function DirectorDispatchView({ mail, open, onClose }: Props) {
         typeof d === 'string' ? d : d._id
       ) ?? [];
       setDispatchedTo(existing);
-      setAssignedTo(mail?.assignedTo?._id ?? '');
+      setAssignedTo(
+        Array.isArray(mail?.assignedTo)
+          ? mail.assignedTo.map((u: { _id: string }) => u._id)
+          : []
+      );
       setInstructions(mail?.instructions ?? '');
       setPriority('');
     }
@@ -241,7 +396,7 @@ export function DirectorDispatchView({ mail, open, onClose }: Props) {
       }
       return mailService.dispatch(mail!._id, {
         dispatchedTo,                                            // tableau d'IDs
-        ...(assignedTo ? { assignedTo } : {}),
+        ...(assignedTo.length > 0 ? { assignedTo } : {}),
         ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
         ...(priority ? { priority: priority as ApiMail['priority'] } : {}),
       });
@@ -253,7 +408,7 @@ export function DirectorDispatchView({ mail, open, onClose }: Props) {
       qc.invalidateQueries({ queryKey: ['mails'] });
       qc.invalidateQueries({ queryKey: ['mails-dispatch'] });
       setDispatchedTo([]);
-      setAssignedTo('');
+      setAssignedTo([]);
       setInstructions('');
       setPriority('');
       onClose();
@@ -286,31 +441,34 @@ export function DirectorDispatchView({ mail, open, onClose }: Props) {
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* PDF Preview */}
-          <div className="rounded-xl border bg-muted/30 p-6 flex flex-col items-center justify-center min-h-[320px]">
-            <FileText className="h-16 w-16 text-muted-foreground/30 mb-4" />
-            <p className="text-sm font-medium text-muted-foreground mb-1">Document scanné</p>
-            <p className="text-xs text-muted-foreground/70 text-center mb-4 max-w-[200px] truncate">
+          <div className="rounded-xl border bg-muted/30 p-4 flex flex-col items-center min-h-[320px]">
+            <p className="text-sm font-medium text-muted-foreground mb-1 self-start">Document scanné</p>
+            <p className="text-xs text-muted-foreground/70 mb-3 self-start max-w-full truncate">
               {mail.subject}
             </p>
+
             {mail.pdfUrl ? (
-              <Button variant="outline" size="sm" asChild>
-                <a
-                  href={mail.pdfUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={e => {
-                    e.preventDefault();
-                    window.open(mail.pdfUrl!, '_blank', 'noopener,noreferrer');
-                  }}
-                >
-                  Ouvrir le PDF
-                </a>
+              <>
+                {/* Prévisualisation de la première page */}
+                 <PdfFirstPage pdfUrl={mail.pdfUrl} />
+
+                {/* Bouton Ouvrir le PDF */}
+                {/* Bouton Ouvrir le PDF */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(mail.pdfUrl!, '_blank', 'noopener,noreferrer')}
+              >
+                Ouvrir le PDF
               </Button>
+              </>
             ) : (
-              <span className="text-xs text-muted-foreground/50">Aucun PDF joint</span>
+              <div className="flex flex-col items-center justify-center flex-1 w-full">
+                <FileText className="h-16 w-16 text-muted-foreground/30 mb-4" />
+                <span className="text-xs text-muted-foreground/50">Aucun PDF joint</span>
+              </div>
             )}
           </div>
-
           {/* Panneau droit */}
           <div className="space-y-4">
             {/* Détails */}
@@ -372,11 +530,13 @@ export function DirectorDispatchView({ mail, open, onClose }: Props) {
                     );
                   })}
                 </div>
-                {mail.assignedTo && (
-                  <p className="text-muted-foreground">
-                    Responsable : <strong>{mail.assignedTo.name}</strong>
-                  </p>
-                )}
+                  {Array.isArray(mail.assignedTo) && mail.assignedTo.length > 0 && (
+                    <p className="text-muted-foreground">
+                      Responsables : <strong>
+                        {mail.assignedTo.map((u: { name: string }) => u.name).join(', ')}
+                      </strong>
+                    </p>
+                  )}
                 {mail.instructions && (
                   <p className="text-muted-foreground italic">{mail.instructions}</p>
                 )}
@@ -415,28 +575,13 @@ export function DirectorDispatchView({ mail, open, onClose }: Props) {
                 {/* Responsable principal (optionnel) */}
                 <div>
                   <Label className="text-xs">Responsable principal (optionnel)</Label>
-                  <Select
-                    value={assignedTo}
-                    onValueChange={v => setAssignedTo(v === 'none' ? '' : v)}
-                  >
-                    <SelectTrigger className="mt-1 h-9">
-                      <SelectValue placeholder="Choisir un responsable" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Non spécifié</SelectItem>
-                      {assignableUsers.map(u => {
-                        const deptName =
-                          typeof u.departmentId === 'object' && u.departmentId
-                            ? ` · ${(u.departmentId as { name: string }).name}`
-                            : '';
-                        return (
-                          <SelectItem key={u._id} value={u._id}>
-                            {u.name} — {u.role}{deptName}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <div className="mt-1">
+                    <MultiSelectUser
+                      users={assignableUsers}
+                      selected={assignedTo}
+                      onChange={setAssignedTo}
+                    />
+                  </div>
                 </div>
 
                 {/* Priorité */}

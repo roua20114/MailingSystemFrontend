@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 
 const mainNav = [
   { title: 'Tableau de bord', url: '/', icon: LayoutDashboard },
-  { title: 'Dispatcher', url: '/dispatch', icon: ClipboardCheck, badge: 4 },
+  { title: 'Dispatcher', url: '/dispatch', icon: ClipboardCheck },
   { title: 'Courrier Entrant', url: '/incoming', icon: Inbox },
   { title: 'Courrier Sortant', url: '/outgoing', icon: Send },
   { title: 'Courrier Interne', url: '/internal', icon: ArrowLeftRight },

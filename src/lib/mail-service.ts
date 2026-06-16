@@ -16,7 +16,7 @@ export interface ApiMail {
   description?: string;
   instructions?: string;
   pdfUrl?: string;
-  assignedTo?: { _id: string; name: string; email: string; role: string } | null;
+  assignedTo?: Array<{ _id: string; name: string; email: string; role: string }> | null;
   assignedDepartment?: { _id: string; name: string } | null;
   dispatchedTo?: Array<{ _id: string; name: string; description?: string }> | null;
   createdBy?: { _id: string; name: string; email: string };
@@ -36,6 +36,7 @@ export interface ApiMail {
   }>;
   createdAt: string;
   updatedAt: string;
+  isMarked?: boolean;
 }
 
 interface PaginatedResponse<T> {
@@ -85,7 +86,7 @@ interface AssignMailPayload {
 
 interface DispatchMailPayload {
   dispatchedTo: string[];          // tableau d'IDs de départements (min 1)
-  assignedTo?: string;             // utilisateur principal (facultatif)
+  assignedTo?: string[];            // utilisateur principal (facultatif)
   instructions?: string;
   priority?: ApiMailPriority;
 }
@@ -147,6 +148,13 @@ export const mailService = {
     });
     return res.data.mail;
   },
+
+  async mark(id: string): Promise<ApiMail> {
+  const res = await apiRequest<SingleResponse<ApiMail>>(`/mails/${id}/mark`, {
+    method: 'PATCH',
+  });
+  return res.data.mail;
+},
 
   async assign(id: string, payload: AssignMailPayload): Promise<ApiMail> {
     const body: Record<string, unknown> = { assignedTo: payload.assignedTo };

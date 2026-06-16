@@ -42,6 +42,7 @@ interface Props {
   inboxMailId?: string;
   /** Objet du courrier entrant, pour pré-remplir "Rép : …" */
   incomingMailSubject?: string;
+  defaultType?: ApiMailType; 
 }
 
 const defaultForm = {
@@ -64,6 +65,7 @@ export function MailRegistrationForm({
   onSenderCreated,
   inboxMailId,
   incomingMailSubject,
+  defaultType, 
 }: Props) {
   const { user }  = useAuth();
   const isReplyMode = !!inboxMailId;
@@ -96,6 +98,7 @@ export function MailRegistrationForm({
         setForm({
           ...defaultForm,
           sender: senders.length > 0 ? senders[0]._id : '',
+          type: defaultType ?? 'Incoming', 
         });
       }
       setFile(null);

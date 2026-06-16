@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { FileSearch, FileText, Clock, User, Building2, MessageSquare, PlayCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,6 +16,47 @@ import { formatDate, formatDateTime } from '@/lib/data-helpers';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Sparkles } from 'lucide-react';
+import * as pdfjsLib from 'pdfjs-dist';
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+
+function PdfFirstPage({ pdfUrl }: { pdfUrl: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+
+    pdfjsLib.getDocument({ url: pdfUrl }).promise
+      .then(pdf => pdf.getPage(1))
+      .then(page => {
+        if (cancelled || !canvasRef.current) return;
+        const container      = canvasRef.current.parentElement!;
+        const containerWidth = container.clientWidth || 280;
+        const viewport       = page.getViewport({ scale: 1 });
+        const scale          = containerWidth / viewport.width;
+        const scaled         = page.getViewport({ scale });
+        const canvas         = canvasRef.current;
+        canvas.width         = scaled.width;
+        canvas.height        = scaled.height;
+        page.render({ canvasContext: canvas.getContext('2d')!, viewport: scaled, canvas })
+          .promise.then(() => { if (!cancelled) setLoading(false); });
+      })
+      .catch(() => { if (!cancelled) { setLoading(false); setError(true); } });
+
+    return () => { cancelled = true; };
+  }, [pdfUrl]);
+
+  return (
+    <div className="w-full rounded-lg overflow-hidden border bg-white flex items-center justify-center" style={{ minHeight: '200px' }}>
+      {loading && !error && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
+      {error   && <span className="text-xs text-muted-foreground/50">Aperçu indisponible</span>}
+      <canvas ref={canvasRef} className={`w-full ${loading || error ? 'hidden' : ''}`} />
+    </div>
+  );
+}
 export default function MailTracking() {
   const [selected, setSelected] = useState<ApiMail | null>(null);
   const [search, setSearch] = useState('');
@@ -296,26 +337,26 @@ export default function MailTracking() {
                 </div>
 
                 {/* PDF */}
-                <div className="rounded-xl border bg-muted/30 p-8 flex flex-col items-center">
-                  <FileText className="h-12 w-12 text-muted-foreground/30 mb-3" />
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Document scanné</p>
-                  <p className="text-[11px] text-muted-foreground/60 mb-3">{selected.subject}</p>
+                <div className="rounded-xl border bg-muted/30 p-4 flex flex-col items-center">
+                  <p className="text-sm font-medium text-muted-foreground mb-1 self-start">Document scanné</p>
+                  <p className="text-[11px] text-muted-foreground/60 mb-3 self-start">{selected.subject}</p>
                   {selected.pdfUrl ? (
-                    <Button variant="outline" size="sm" className="gap-2" asChild>
-                      <a
-                        href={selected.pdfUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={e => {
-                          e.preventDefault();
-                          window.open(selected.pdfUrl!, '_blank', 'noopener,noreferrer');
-                        }}
+                    <>
+                      <PdfFirstPage pdfUrl={selected.pdfUrl} />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 mt-3"
+                        onClick={() => window.open(selected.pdfUrl!, '_blank', 'noopener,noreferrer')}
                       >
                         Ouvrir le PDF
-                      </a>
-                    </Button>
+                      </Button>
+                    </>
                   ) : (
-                    <span className="text-xs text-muted-foreground">Aucun PDF joint</span>
+                    <div className="flex flex-col items-center justify-center py-8">
+                      <FileText className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                      <span className="text-xs text-muted-foreground">Aucun PDF joint</span>
+                    </div>
                   )}
                 </div>
 

@@ -228,8 +228,8 @@ export default function IncomingMail() {
                       <TableCell className="text-right">
                         <Button
                           size="sm"
-                          variant={hasResponses ? 'ghost' : 'outline'}
-                          disabled={hasResponses}
+                          variant="outline"
+                    
                           onClick={() => {
                             setReplyState({ inboxMailId: mail._id, incomingMailSubject: mail.subject });
                             setShowForm(true);
