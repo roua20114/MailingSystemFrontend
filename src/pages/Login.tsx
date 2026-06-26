@@ -114,10 +114,7 @@ export default function Login() {
           )}
         </Button>
 
-        <div className="rounded-xl border border-dashed border-border bg-muted/40 p-3 text-[11px] text-muted-foreground">
-          <p className="font-medium text-foreground mb-1">Compte démo</p>
-          <p>admin@nexusmail.io · Admin1234</p>
-        </div>
+        
 
         <p className="text-center text-sm text-muted-foreground">
           Pas encore de compte ?{' '}
