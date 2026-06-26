@@ -25,6 +25,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const [showPwd, setShowPwd] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const {
     register,
@@ -33,15 +34,16 @@ export default function Login() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (values: FormValues) => {
+  setLoginError(null);
     try {
       await login(values);
       toast.success('Connexion réussie', { description: 'Bienvenue sur NexusMail.' });
       const from = (location.state as { from?: Location })?.from?.pathname ?? '/';
       navigate(from, { replace: true });
     } catch (e) {
-      toast.error('Échec de connexion', {
-        description: e instanceof Error ? e.message : 'Une erreur est survenue.',
-      });
+      const msg = e instanceof Error ? e.message : 'Une erreur est survenue.';
+      setLoginError(msg);
+      toast.error('Échec de connexion', { description: msg });
     }
   };
 
@@ -89,6 +91,16 @@ export default function Login() {
           </div>
           {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
         </div>
+         {loginError && (
+          <div className={`rounded-lg p-3 text-sm border ${
+            loginError.includes('attente')
+              ? 'bg-orange-50 border-orange-200 text-orange-700'
+              : 'bg-red-50 border-red-200 text-red-700'
+          }`}>
+            {loginError.includes('attente') && <span className="mr-1">⏳</span>}
+            {loginError}
+          </div>
+        )}
 
         <Button type="submit" className="w-full h-11 rounded-xl" disabled={isSubmitting}>
           {isSubmitting ? (

@@ -57,6 +57,19 @@ function PdfFirstPage({ pdfUrl }: { pdfUrl: string }) {
     </div>
   );
 }
+function FilePreview({ url }: { url: string }) {
+  const isImage = /\.(png|jpe?g|gif|webp|bmp)(\?.*)?$/i.test(url);
+  if (isImage) {
+    return (
+      <div className="w-full rounded-lg overflow-hidden border bg-white flex items-center justify-center" style={{ minHeight: '200px' }}>
+        <img src={url} alt="Document joint" className="w-full h-auto object-contain" style={{ maxHeight: '400px' }} />
+      </div>
+    );
+  }
+  return <PdfFirstPage pdfUrl={url} />;
+}
+
+
 export default function MailTracking() {
   const [selected, setSelected] = useState<ApiMail | null>(null);
   const [search, setSearch] = useState('');
@@ -336,28 +349,43 @@ export default function MailTracking() {
                   )}
                 </div>
 
-                {/* PDF */}
+                {/* Documents scannés */}
                 <div className="rounded-xl border bg-muted/30 p-4 flex flex-col items-center">
-                  <p className="text-sm font-medium text-muted-foreground mb-1 self-start">Document scanné</p>
+                  <p className="text-sm font-medium text-muted-foreground mb-1 self-start">Documents scannés</p>
                   <p className="text-[11px] text-muted-foreground/60 mb-3 self-start">{selected.subject}</p>
-                  {selected.pdfUrl ? (
-                    <>
-                      <PdfFirstPage pdfUrl={selected.pdfUrl} />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2 mt-3"
-                        onClick={() => window.open(selected.pdfUrl!, '_blank', 'noopener,noreferrer')}
-                      >
-                        Ouvrir le PDF
-                      </Button>
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-8">
-                      <FileText className="h-12 w-12 text-muted-foreground/30 mb-3" />
-                      <span className="text-xs text-muted-foreground">Aucun PDF joint</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const allUrls: string[] = [];
+                    if (selected.pdfUrl) allUrls.push(selected.pdfUrl);
+                    if (selected.pdfUrls) selected.pdfUrls.forEach((u: string) => { if (u !== selected.pdfUrl) allUrls.push(u); });
+                    if (allUrls.length === 0) return (
+                      <div className="flex flex-col items-center justify-center py-8">
+                        <FileText className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                        <span className="text-xs text-muted-foreground">Aucun document joint</span>
+                      </div>
+                    );
+                    return (
+                      <>
+                        {allUrls.map((url, index) => (
+                          <div key={url} className="w-full mb-3">
+                            {index > 0 && (
+                              <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                                <FileText className="h-3 w-3" /> Document supplémentaire {index}
+                              </p>
+                            )}
+                            <FilePreview url={url} />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2 mt-2 w-full"
+                              onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+                            >
+                              Ouvrir le fichier {allUrls.length > 1 ? `(${index + 1})` : ''}
+                            </Button>
+                          </div>
+                        ))}
+                      </>
+                    );
+                  })()}
                 </div>
 
               </CardContent>

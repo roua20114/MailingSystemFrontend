@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, Sparkles, X, Loader2, Plus, CornerUpLeft, MessageSquare } from 'lucide-react';
+import { Upload, Sparkles, X, Loader2, Plus, CornerUpLeft, MessageSquare, FileText  } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,6 +43,7 @@ interface Props {
   /** Objet du courrier entrant, pour pré-remplir "Rép : …" */
   incomingMailSubject?: string;
   defaultType?: ApiMailType; 
+  incomingPdfUrl?: string | null;
 }
 
 const defaultForm = {
@@ -66,6 +67,7 @@ export function MailRegistrationForm({
   inboxMailId,
   incomingMailSubject,
   defaultType, 
+  incomingPdfUrl, 
 }: Props) {
   const { user }  = useAuth();
   const isReplyMode = !!inboxMailId;
@@ -234,6 +236,15 @@ export function MailRegistrationForm({
         ...(inboxMailId                     ? { inboxMailId }                                    : {}),
         ...(form.manualReference.trim()     ? { manualReference: form.manualReference.trim() }  : {}),
       });
+      // After mailService.create(...), add:
+      if (inboxMailId && pdfUrl) {
+        // Attach the new PDF to the original incoming mail
+        await apiRequest(`/mails/${inboxMailId}/attach-pdf`, {
+          method: 'PATCH',
+          body: JSON.stringify({ pdfUrl }),
+     });
+}
+      
 
       const msg  = isReplyMode ? 'Réponse envoyée'      : 'Courrier enregistré';
       const desc = isReplyMode
@@ -385,55 +396,81 @@ export function MailRegistrationForm({
           )}
 
           {/* ── Upload document ── */}
-          <div>
-            <Label className="mb-2 block">Document scanné (optionnel)</Label>
-            <div
-              {...getRootProps()}
-              className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-colors cursor-pointer ${
-                isDragActive
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:border-primary/50'
-              }`}
-            >
-              <input {...getInputProps()} />
-              {file ? (
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium">{file.name}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={e => { e.stopPropagation(); setFile(null); }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    Glissez votre PDF ici ou cliquez pour sélectionner
-                  </p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">
-                    PDF, PNG, JPG acceptés
-                  </p>
-                </>
-              )}
-            </div>
-            {file && (
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <Sparkles className="h-3 w-3 text-primary" />
-                <span className="text-[10px] text-primary">
-                  Document joint — le délai SLA sera calculé automatiquement
-                </span>
-              </div>
-            )}
-          </div>
+          {/* ── Upload document ── */}
+<div>
+  <Label className="mb-2 block">Document scanné (optionnel)</Label>
+
+  {/* Show original mail's PDF if in reply mode */}
+  {isReplyMode && incomingPdfUrl && (
+    <div className="mb-3 flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
+      <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+      <span className="text-xs text-muted-foreground flex-1">Document original joint</span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-6 text-xs px-2"
+        onClick={() => window.open(incomingPdfUrl!, '_blank', 'noopener,noreferrer')}
+      >
+        Voir
+      </Button>
+    </div>
+  )}
+
+  {/* Upload zone for new/additional file */}
+  <div
+    {...getRootProps()}
+    className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-colors cursor-pointer ${
+      isDragActive
+        ? 'border-primary bg-primary/5'
+        : 'border-border hover:border-primary/50'
+    }`}
+  >
+    <input {...getInputProps()} />
+    {file ? (
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-medium">{file.name}</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={e => { e.stopPropagation(); setFile(null); }}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    ) : (
+      <>
+        <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+        <p className="text-sm text-muted-foreground">
+          {isReplyMode && incomingPdfUrl
+            ? 'Ajouter un document supplémentaire (optionnel)'
+            : 'Glissez votre PDF ici ou cliquez pour sélectionner'}
+        </p>
+        <p className="text-xs text-muted-foreground/60 mt-1">
+          PDF, PNG, JPG acceptés
+        </p>
+      </>
+    )}
+  </div>
+  {file && (
+    <div className="flex items-center gap-1.5 mt-1.5">
+      <Sparkles className="h-3 w-3 text-primary" />
+      <span className="text-[10px] text-primary">
+        {isReplyMode && incomingPdfUrl
+          ? 'Document supplémentaire joint à la réponse'
+          : 'Document joint — le délai SLA sera calculé automatiquement'}
+      </span>
+    </div>
+  )}
+</div>
 
           {/* ── Type + Priorité ── */}
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <Label>Type de courrier *</Label>
+              <Label>Type de courrier </Label><span className="ml-1 text-xs font-normal text-muted-foreground" >*
+                  
+                </span>
               {isReplyMode ? (
                 <div className="mt-1 px-3 py-2 rounded-md bg-muted text-sm font-medium text-muted-foreground select-none">
                   Sortant (Réponse)
@@ -455,7 +492,9 @@ export function MailRegistrationForm({
               )}
             </div>
             <div>
-              <Label>Priorité *</Label>
+              <Label>Priorité</Label><span className="ml-1 text-xs font-normal text-muted-foreground" >*
+                  
+                </span>
               <Select
                 value={form.priority}
                 onValueChange={v => setForm(f => ({ ...f, priority: v as ApiMailPriority }))}
@@ -477,8 +516,10 @@ export function MailRegistrationForm({
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label>
-                {isReplyMode ? 'Expéditeur de la réponse *' : 'Expéditeur *'}
-              </Label>
+                {isReplyMode ? 'Expéditeur de la réponse' : 'Expéditeur'}
+              </Label> <span className="ml-1 text-xs font-normal text-muted-foreground" >*
+                  
+                </span>
               <div className="flex items-center gap-2">
                 <Select
                   value={form.sender}
@@ -576,7 +617,9 @@ export function MailRegistrationForm({
 
           {/* ── Objet ── */}
           <div>
-            <Label>Objet *</Label>
+            <Label>Objet</Label> <span className="ml-1 text-xs font-normal text-muted-foreground" >*
+                  
+                </span>
             <Input
               className={`mt-1 ${errors.subject ? 'border-destructive' : ''}`}
               placeholder="Objet du courrier (3 caractères minimum)"
@@ -584,11 +627,12 @@ export function MailRegistrationForm({
               onChange={e => {
                 setForm(f => ({ ...f, subject: e.target.value }));
                 setErrors(v => ({ ...v, subject: '' }));
-              }}
+              }} 
             />
             {errors.subject && (
               <p className="text-xs text-destructive mt-1">{errors.subject}</p>
             )}
+            
           </div>
 
           {/* ── Référence manuelle (hors mode réponse) ── */}
@@ -596,8 +640,8 @@ export function MailRegistrationForm({
             <div>
               <Label>
                 Référence du document physique
-                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  (optionnelle)
+                <span className="ml-1 text-xs font-normal text-muted-foreground" >*
+                  
                 </span>
               </Label>
               <Input

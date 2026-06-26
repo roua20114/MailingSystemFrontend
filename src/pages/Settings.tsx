@@ -7,7 +7,10 @@ import MailCategoriesTab from '@/components/settings/MailCategoriesTab';
 import SystemConfigTab from '@/components/settings/SystemConfigTab';
 import NotificationSettings from '@/components/settings/NotificationSettings';
 
+
+
 export default function SettingsPage() {
+  
   return (
     <div className="space-y-6 animate-fade-in">
       <div>

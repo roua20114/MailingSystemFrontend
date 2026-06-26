@@ -63,6 +63,19 @@ function PdfFirstPage({ pdfUrl }: { pdfUrl: string }) {
   );
 }
 
+
+function FilePreview({ url }: { url: string }) {
+  const isImage = /\.(png|jpe?g|gif|webp|bmp)(\?.*)?$/i.test(url);
+  if (isImage) {
+    return (
+      <div className="w-full rounded-lg overflow-hidden border bg-white flex items-center justify-center" style={{ minHeight: '220px' }}>
+        <img src={url} alt="Document joint" className="w-full h-auto object-contain" style={{ maxHeight: '400px' }} />
+      </div>
+    );
+  }
+  return <PdfFirstPage pdfUrl={url} />;
+}
+
 // ── Outgoing mail detail modal ────────────────────────────────────────────────
 function OutgoingMailDetail({ mail, open, onClose }: { mail: ApiMail | null; open: boolean; onClose: () => void }) {
   if (!mail) return null;
@@ -83,28 +96,43 @@ function OutgoingMailDetail({ mail, open, onClose }: { mail: ApiMail | null; ope
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* PDF Preview */}
+          {/* Documents scannés */}
           <div className="rounded-xl border bg-muted/30 p-4 flex flex-col items-center min-h-[320px]">
-            <p className="text-sm font-medium text-muted-foreground mb-1 self-start">Document scanné</p>
+            <p className="text-sm font-medium text-muted-foreground mb-1 self-start">Documents scannés</p>
             <p className="text-xs text-muted-foreground/70 mb-3 self-start max-w-full truncate">{mail.subject}</p>
-            {mail.pdfUrl ? (
-              <>
-                <PdfFirstPage pdfUrl={mail.pdfUrl} />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3"
-                  onClick={() => window.open(mail.pdfUrl!, '_blank', 'noopener,noreferrer')}
-                >
-                  Ouvrir le PDF
-                </Button>
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center flex-1 w-full">
-                <FileText className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                <span className="text-xs text-muted-foreground/50">Aucun PDF joint</span>
-              </div>
-            )}
+            {(() => {
+              const allUrls: string[] = [];
+              if (mail.pdfUrl) allUrls.push(mail.pdfUrl);
+              if (mail.pdfUrls) mail.pdfUrls.forEach((u: string) => { if (u !== mail.pdfUrl) allUrls.push(u); });
+              if (allUrls.length === 0) return (
+                <div className="flex flex-col items-center justify-center flex-1 w-full">
+                  <FileText className="h-16 w-16 text-muted-foreground/30 mb-4" />
+                  <span className="text-xs text-muted-foreground/50">Aucun document joint</span>
+                </div>
+              );
+              return (
+                <>
+                  {allUrls.map((url, index) => (
+                    <div key={url} className="w-full mb-4">
+                      {index > 0 && (
+                        <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                          <FileText className="h-3 w-3" /> Document supplémentaire {index}
+                        </p>
+                      )}
+                      <FilePreview url={url} />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 w-full"
+                        onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+                      >
+                        Ouvrir le fichier {allUrls.length > 1 ? `(${index + 1})` : ''}
+                      </Button>
+                    </div>
+                  ))}
+                </>
+              );
+            })()}
           </div>
 
           {/* Right panel */}
@@ -339,7 +367,9 @@ export default function OutgoingMail() {
                     <TableCell className="text-xs">
                       {typeof mail.sender === 'string' ? mail.sender : mail.sender?.name ?? 'Inconnu'}
                     </TableCell>
-                    <TableCell className="text-xs">{mail.assignedDepartment?.name ?? '—'}</TableCell>
+                    <TableCell className="text-xs"> {Array.isArray(mail.dispatchedTo) && mail.dispatchedTo.length > 0
+                      ? mail.dispatchedTo.map((d: any) => typeof d === 'string' ? d : d.name).join(', ')
+                      : '—'}</TableCell>
                     <TableCell className="text-xs">
                       {Array.isArray(mail.assignedTo) && mail.assignedTo.length > 0
                         ? mail.assignedTo.map((u: { name: string }) => u.name).join(', ')

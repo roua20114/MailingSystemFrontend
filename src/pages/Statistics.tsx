@@ -83,7 +83,9 @@ export default function Statistics() {
   // ── Department performance ────────────────────────────────────────────────
   const deptMap: Record<string, number> = {};
   mails.forEach(m => {
-    const name = m.assignedDepartment?.name;
+    const name = Array.isArray(m.dispatchedTo) && m.dispatchedTo.length > 0
+    ? (typeof m.dispatchedTo[0] === 'string' ? m.dispatchedTo[0] : (m.dispatchedTo[0] as any).name)
+    : undefined;
     if (name) deptMap[name] = (deptMap[name] ?? 0) + 1;
   });
   const deptData = Object.entries(deptMap)
@@ -132,14 +134,17 @@ export default function Statistics() {
         ...mails.map(m => [
           m.referenceNumber,
           TYPE_LABELS[m.type] ?? m.type,
-          m.sender,
+          typeof m.sender === 'string' ? m.sender : (m.sender as any)?.name ?? '—',
           m.subject,
           STATUS_LABELS[m.status] ?? m.status,
           m.priority,
-          m.assignedDepartment?.name ?? '—',
+          Array.isArray(m.dispatchedTo) && m.dispatchedTo.length > 0
+            ? m.dispatchedTo.map((d: any) => typeof d === 'string' ? d : d.name).join(', ')
+            : '—',
           formatDate(m.createdAt),
-          formatDate(m.slaDeadline),
+          m.slaDeadline ? formatDate(m.slaDeadline) : '—',
         ]),
+
       ];
       const wsDetail = XLSX.utils.aoa_to_sheet(detailRows);
       wsDetail['!cols'] = [
@@ -326,15 +331,18 @@ export default function Statistics() {
       autoTable(doc, {
         startY: y,
         head: [['Référence','Type','Expéditeur','Objet','Statut','Priorité','Département','Date']],
-        body: mails.map(m => [
+       body: mails.map(m => [
           m.referenceNumber,
           TYPE_LABELS[m.type] ?? m.type,
-          m.sender,
-          m.subject.length > 28 ? m.subject.slice(0, 26) + '…' : m.subject,
+          typeof m.sender === 'string' ? m.sender : (m.sender as any)?.name ?? '—',
+          m.subject,
           STATUS_LABELS[m.status] ?? m.status,
           m.priority,
-          m.assignedDepartment?.name ?? '—',
+          Array.isArray(m.dispatchedTo) && m.dispatchedTo.length > 0
+            ? m.dispatchedTo.map((d: any) => typeof d === 'string' ? d : d.name).join(', ')
+            : '—',
           formatDate(m.createdAt),
+          m.slaDeadline ? formatDate(m.slaDeadline) : '—',
         ]),
         styles: { fontSize: 7.5, cellPadding: 2.5, overflow: 'ellipsize' },
         headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 8 },

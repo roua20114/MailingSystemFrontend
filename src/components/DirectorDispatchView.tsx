@@ -30,6 +30,7 @@ interface MultiSelectDeptProps {
   selected: string[];           // tableau d'IDs sélectionnés
   onChange: (ids: string[]) => void;
   placeholder?: string;
+ 
 }
 
 function MultiSelectDept({ departments, selected, onChange, placeholder = 'Sélectionner des départements...' }: MultiSelectDeptProps) {
@@ -331,6 +332,19 @@ function PdfFirstPage({ pdfUrl }: { pdfUrl: string }) {
   );
 }
 
+
+function FilePreview({ url }: { url: string }) {
+  const isImage = /\.(png|jpe?g|gif|webp|bmp)(\?.*)?$/i.test(url);
+  if (isImage) {
+    return (
+      <div className="w-full rounded-lg overflow-hidden border bg-white flex items-center justify-center" style={{ minHeight: '220px' }}>
+        <img src={url} alt="Document joint" className="w-full h-auto object-contain" style={{ maxHeight: '400px' }} />
+      </div>
+    );
+  }
+  return <PdfFirstPage pdfUrl={url} />;
+}
+
 // ── Composant principal DirectorDispatchView ──────────────────────────────────
 export function DirectorDispatchView({ mail, open, onClose }: Props) {
   const { user } = useAuth();
@@ -359,34 +373,37 @@ export function DirectorDispatchView({ mail, open, onClose }: Props) {
 
   // Réinitialise le formulaire à chaque ouverture
   useEffect(() => {
-    if (open) {
-      // Pré-remplit avec les départements déjà dispatchés s'ils existent
-      const existing = mail?.dispatchedTo?.map(d =>
-        typeof d === 'string' ? d : d._id
-      ) ?? [];
-      setDispatchedTo(existing);
-      setAssignedTo(
-        Array.isArray(mail?.assignedTo)
-          ? mail.assignedTo.map((u: { _id: string }) => u._id)
-          : []
-      );
-      setInstructions(mail?.instructions ?? '');
-      setPriority('');
-    }
-  }, [open, mail]);
+  if (open && mail) {
+    setDispatchedTo(
+      Array.isArray(mail.dispatchedTo)
+        ? mail.dispatchedTo.map((d: any) => typeof d === 'string' ? d : d._id)
+        : []
+    );
+    setAssignedTo(
+      Array.isArray(mail.assignedTo)
+        ? mail.assignedTo.map((u: any) => u._id)
+        : []
+    );
+    setInstructions(mail?.instructions ?? '');
+    setPriority('');
+    setLocalStatus(null);   // ← reset on open
+  }
+}, [open, mail]);
 
   // ── Mutations ──────────────────────────────────────────────────────────────
-  const reviewMutation = useMutation({
-    mutationFn: () =>
-      mailService.updateStatus(mail!._id, 'Under Review', 'Pris en charge par le Directeur'),
-    onSuccess: () => {
-      toast.success('Statut mis à jour', { description: 'Courrier passé en révision.' });
-      qc.invalidateQueries({ queryKey: ['mails'] });
-      qc.invalidateQueries({ queryKey: ['mails-dispatch'] });
-      onClose();
-    },
-    onError: (e: Error) => toast.error('Erreur', { description: e.message }),
-  });
+  const [localStatus, setLocalStatus] = useState<string | null>(null);
+
+const reviewMutation = useMutation({
+  mutationFn: () =>
+    mailService.updateStatus(mail!._id, 'Under Review', 'Pris en charge par le Directeur'),
+  onSuccess: () => {
+    toast.success('Statut mis à jour', { description: 'Courrier passé en révision — vous pouvez maintenant dispatcher.' });
+    qc.invalidateQueries({ queryKey: ['mails'] });
+    qc.invalidateQueries({ queryKey: ['mails-dispatch'] });
+    setLocalStatus('Under Review');  // ← keep modal open, show dispatch form
+  },
+  onError: (e: Error) => toast.error('Erreur', { description: e.message }),
+});
 
   // PATCH /api/mails/:id/dispatch — dispatching multi-département
   const dispatchMutation = useMutation({
@@ -419,7 +436,8 @@ export function DirectorDispatchView({ mail, open, onClose }: Props) {
   if (!mail) return null;
 
   const canReview = isDirectorOrAdmin && mail.status === 'Registered';
-  const canAssign = isDirectorOrAdmin && mail.status === 'Under Review';
+  const effectiveStatus = localStatus ?? mail.status;
+const canAssign = isDirectorOrAdmin && effectiveStatus === 'Under Review';
 
   // Départements déjà dispatchés (pour l'affichage "Déjà assigné")
   const existingDepts = mail.dispatchedTo ?? [];
@@ -439,51 +457,64 @@ export function DirectorDispatchView({ mail, open, onClose }: Props) {
           <MailStatusStepper currentStatus={mail.status} />
         </div>
 
+        {/* ── Grille 2 colonnes : PDF | Formulaire dispatch ── */}
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* PDF Preview */}
+
+          {/* Colonne gauche — Documents scannés */}
           <div className="rounded-xl border bg-muted/30 p-4 flex flex-col items-center min-h-[320px]">
-            <p className="text-sm font-medium text-muted-foreground mb-1 self-start">Document scanné</p>
-            <p className="text-xs text-muted-foreground/70 mb-3 self-start max-w-full truncate">
-              {mail.subject}
-            </p>
-
-            {mail.pdfUrl ? (
-              <>
-                {/* Prévisualisation de la première page */}
-                 <PdfFirstPage pdfUrl={mail.pdfUrl} />
-
-                {/* Bouton Ouvrir le PDF */}
-                {/* Bouton Ouvrir le PDF */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(mail.pdfUrl!, '_blank', 'noopener,noreferrer')}
-              >
-                Ouvrir le PDF
-              </Button>
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center flex-1 w-full">
-                <FileText className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                <span className="text-xs text-muted-foreground/50">Aucun PDF joint</span>
-              </div>
-            )}
+            <p className="text-sm font-medium text-muted-foreground mb-1 self-start">Documents scannés</p>
+            <p className="text-xs text-muted-foreground/70 mb-3 self-start max-w-full truncate">{mail.subject}</p>
+            {(() => {
+              const allUrls: string[] = [];
+              if (mail.pdfUrl) allUrls.push(mail.pdfUrl);
+              if (mail.pdfUrls) mail.pdfUrls.forEach(u => { if (u !== mail.pdfUrl) allUrls.push(u); });
+              if (allUrls.length === 0) return (
+                <div className="flex flex-col items-center justify-center flex-1 w-full">
+                  <FileText className="h-16 w-16 text-muted-foreground/30 mb-4" />
+                  <span className="text-xs text-muted-foreground/50">Aucun document joint</span>
+                </div>
+              );
+              return (
+                <>
+                  {allUrls.map((url, index) => (
+                    <div key={url} className="w-full mb-4">
+                      {index > 0 && (
+                        <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                          <FileText className="h-3 w-3" /> Document supplémentaire {index}
+                        </p>
+                      )}
+                      <FilePreview url={url} />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 w-full"
+                        onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+                      >
+                        Ouvrir le fichier {allUrls.length > 1 ? `(${index + 1})` : ''}
+                      </Button>
+                    </div>
+                  ))}
+                </>
+              );
+            })()}
           </div>
-          {/* Panneau droit */}
+
+          {/* Colonne droite — Détails + Formulaire dispatch */}
           <div className="space-y-4">
-            {/* Détails */}
-            <div className="rounded-xl border p-4 space-y-2.5">
-              <h3 className="text-sm font-semibold mb-1">Détails</h3>
-              {[
-                ['Expéditeur', typeof mail.sender === 'string' ? mail.sender : mail.sender?.name ?? 'Inconnu'],
-                ['Type', mail.type],
-                ['Date', formatDate(mail.createdAt)],
-                ['Échéance SLA', mail.slaDeadline ? formatDate(mail.slaDeadline) : 'Calculée automatiquement'],
-                ['Créé par', mail.createdBy?.name ?? '—'],
-              ].map(([label, value]) => (
-                <div key={label} className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-muted-foreground text-xs">{label}</span>
-                  <span className="font-medium text-xs">{value}</span>
+
+            {/* Détails du courrier */}
+            <div className="rounded-xl border p-4 space-y-2">
+              <h3 className="text-sm font-semibold">Détails</h3>
+              {([
+                ['Expéditeur', typeof mail.sender === 'string' ? mail.sender : (mail.sender as any)?.name ?? '—'],
+                ['Type',       mail.type],
+                ['Date',       formatDate(mail.createdAt)],
+                ['Échéance SLA', mail.slaDeadline ? formatDate(mail.slaDeadline) : '—'],
+                ['Créé par',   (mail.createdBy as any)?.name ?? '—'],
+              ] as [string, string][]).map(([label, value]) => (
+                <div key={label} className="grid grid-cols-2 gap-2">
+                  <span className="text-xs text-muted-foreground">{label}</span>
+                  <span className="text-xs font-medium">{value}</span>
                 </div>
               ))}
               {mail.description && (
@@ -496,121 +527,97 @@ export function DirectorDispatchView({ mail, open, onClose }: Props) {
 
             {/* Suggestion IA */}
             {mail.aiSuggestedDepartment && (
-              <div className="flex items-start gap-2 rounded-lg bg-primary/5 border border-primary/20 p-3">
-                <Sparkles className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-xs font-medium text-primary">Suggestion IA</p>
-                  <p className="text-xs text-primary/80 mt-0.5">
-                    Département recommandé : <strong>{mail.aiSuggestedDepartment}</strong>
-                    {mail.aiConfidenceScore != null &&
-                      ` (${Math.round(mail.aiConfidenceScore * 100)}% confiance)`}
-                  </p>
-                  {mail.aiSummary && (
-                    <p className="text-[10px] text-muted-foreground mt-1">{mail.aiSummary}</p>
-                  )}
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-xs font-semibold text-primary">Suggestion IA</span>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Département recommandé :{' '}
+                  <span className="font-semibold text-primary">{mail.aiSuggestedDepartment}</span>
+                  {mail.aiConfidenceScore != null && (
+                    <span className="ml-1">({Math.round(mail.aiConfidenceScore * 100)}% confiance)</span>
+                  )}
+                </p>
+                {mail.aiSummary && (
+                  <p className="text-[11px] text-muted-foreground/70 italic">{mail.aiSummary}</p>
+                )}
               </div>
             )}
 
             {/* Déjà dispatché */}
             {existingDepts.length > 0 && (
-              <div className="rounded-lg border bg-emerald-500/5 border-emerald-500/20 p-3 text-xs space-y-2">
-                <p className="font-semibold text-emerald-700 dark:text-emerald-400">
-                  Déjà dispatché vers {existingDepts.length} département(s)
-                </p>
+              <div className="rounded-xl border p-3 space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Déjà dispatché vers</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {existingDepts.map(d => {
-                    const id   = typeof d === 'string' ? d : d._id;
-                    const name = typeof d === 'string' ? id : d.name;
-                    return (
-                      <Badge key={id} variant="secondary" className="text-[10px]">
-                        <Building2 className="h-2.5 w-2.5 mr-1" />
-                        {name}
-                      </Badge>
-                    );
-                  })}
+                  {existingDepts.map((d: any) => (
+                    <Badge key={typeof d === 'string' ? d : d._id} variant="secondary" className="text-xs">
+                      {typeof d === 'string' ? d : d.name}
+                    </Badge>
+                  ))}
                 </div>
-                  {Array.isArray(mail.assignedTo) && mail.assignedTo.length > 0 && (
-                    <p className="text-muted-foreground">
-                      Responsables : <strong>
-                        {mail.assignedTo.map((u: { name: string }) => u.name).join(', ')}
-                      </strong>
-                    </p>
-                  )}
+                {Array.isArray(mail.assignedTo) && mail.assignedTo.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Responsables :{' '}
+                    <strong>{mail.assignedTo.map((u: any) => u.name).join(', ')}</strong>
+                  </p>
+                )}
                 {mail.instructions && (
-                  <p className="text-muted-foreground italic">{mail.instructions}</p>
+                  <p className="text-xs text-muted-foreground italic">{mail.instructions}</p>
                 )}
               </div>
             )}
 
-            {/* Formulaire de dispatching */}
+            {/* Formulaire DISPATCHING */}
             {canAssign && (
-              <div className="space-y-3 pt-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Dispatching
-                </p>
+              <div className="rounded-xl border p-4 space-y-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dispatching</p>
 
-                {/* ── MULTI-SELECT DÉPARTEMENTS ───────────────────────── */}
+                {/* Départements destinataires */}
                 <div>
-                  <Label className="text-xs">
-                    Départements destinataires{' '}
-                    <span className="text-destructive">*</span>
+                  <Label className="text-xs mb-1 block">
+                    Départements destinataires <span className="text-red-500">*</span>
                   </Label>
-                  <div className="mt-1">
-                    <MultiSelectDept
-                      departments={departments}
-                      selected={dispatchedTo}
-                      onChange={setDispatchedTo}
-                    />
-                  </div>
-                  {/* Feedback si aucune sélection */}
-                  {dispatchedTo.length === 0 && (
-                    <p className="mt-1.5 text-[10px] text-muted-foreground flex items-center gap-1">
-                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-destructive/60" />
-                      Sélectionnez au moins un département pour activer le dispatching
-                    </p>
-                  )}
+                  <MultiSelectDept
+                    departments={departments}
+                    selected={dispatchedTo}
+                    onChange={setDispatchedTo}
+                  />
                 </div>
 
-                {/* Responsable principal (optionnel) */}
+                {/* Responsable principal */}
                 <div>
-                  <Label className="text-xs">Responsable principal (optionnel)</Label>
-                  <div className="mt-1">
-                    <MultiSelectUser
-                      users={assignableUsers}
-                      selected={assignedTo}
-                      onChange={setAssignedTo}
-                    />
-                  </div>
+                  <Label className="text-xs mb-1 block">Responsables (optionnel)</Label>
+                  <MultiSelectUser
+                    users={assignableUsers}
+                    selected={assignedTo}
+                    onChange={setAssignedTo}
+                  />
                 </div>
 
                 {/* Priorité */}
                 <div>
-                  <Label className="text-xs">Priorité (optionnel)</Label>
-                  <Select
-                    value={priority}
-                    onValueChange={v => setPriority(v === 'keep' ? '' : v)}
-                  >
-                    <SelectTrigger className="mt-1 h-9">
+                  <Label className="text-xs mb-1 block">Priorité (optionnel)</Label>
+                  <Select value={priority} onValueChange={setPriority}>
+                    <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Conserver la priorité actuelle" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="keep">Conserver ({mail.priority})</SelectItem>
-                      <SelectItem value="Urgent">🔴 Urgent</SelectItem>
-                      <SelectItem value="High">🟠 Élevée</SelectItem>
-                      <SelectItem value="Medium">🔵 Normal</SelectItem>
-                      <SelectItem value="Low">⚪ Faible</SelectItem>
+                      <SelectItem value="Low">Basse</SelectItem>
+                      <SelectItem value="Normal">Normale</SelectItem>
+                      <SelectItem value="High">Élevée</SelectItem>
+                      <SelectItem value="Urgent">Urgente</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 {/* Instructions */}
                 <div>
-                  <Label className="text-xs">Instructions (optionnel)</Label>
+                  <Label className="text-xs mb-1 block">Instructions (optionnel)</Label>
                   <Textarea
-                    className="mt-1 text-xs"
-                    placeholder="Ajoutez des instructions pour les départements destinataires..."
+                    className="text-xs resize-none"
                     rows={3}
+                    placeholder="Ajoutez des instructions pour les départements destinataires..."
                     value={instructions}
                     onChange={e => setInstructions(e.target.value)}
                   />

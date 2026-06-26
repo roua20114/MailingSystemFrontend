@@ -19,6 +19,7 @@ import { formatDate } from '@/lib/data-helpers';
 interface ReplyState {
   inboxMailId: string;
   incomingMailSubject: string;
+  incomingPdfUrl?: string | null;
 }
 
 interface Sender {
@@ -187,7 +188,9 @@ export default function IncomingMail() {
                       </TableCell>
 
                       <TableCell className="text-xs cursor-pointer" onClick={() => setSelectedMail(mail)}>
-                        {mail.assignedDepartment?.name ?? '—'}
+                       {Array.isArray(mail.dispatchedTo) && mail.dispatchedTo.length > 0
+                        ? mail.dispatchedTo.map((d: any) => typeof d === 'string' ? d : d.name).join(', ')
+                        : '—'}
                       </TableCell>
 
                       <TableCell className="text-xs cursor-pointer" onClick={() => setSelectedMail(mail)}>
@@ -231,7 +234,7 @@ export default function IncomingMail() {
                           variant="outline"
                     
                           onClick={() => {
-                            setReplyState({ inboxMailId: mail._id, incomingMailSubject: mail.subject });
+                            setReplyState({ inboxMailId: mail._id, incomingMailSubject: mail.subject, incomingPdfUrl: mail.pdfUrl ?? null});
                             setShowForm(true);
                           }}
                           className="gap-1"
@@ -261,6 +264,7 @@ export default function IncomingMail() {
         onSenderCreated={sender => setSenders(prev => [...prev, sender])}
         inboxMailId={replyState?.inboxMailId}
         incomingMailSubject={replyState?.incomingMailSubject}
+        incomingPdfUrl={replyState?.incomingPdfUrl} 
       />
 
       <DirectorDispatchView

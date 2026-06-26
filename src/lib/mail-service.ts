@@ -16,6 +16,7 @@ export interface ApiMail {
   description?: string;
   instructions?: string;
   pdfUrl?: string;
+  pdfUrls?: string[];
   assignedTo?: Array<{ _id: string; name: string; email: string; role: string }> | null;
   assignedDepartment?: { _id: string; name: string } | null;
   dispatchedTo?: Array<{ _id: string; name: string; description?: string }> | null;

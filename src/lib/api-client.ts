@@ -49,11 +49,14 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   const session = getSession();
   const token = session?.tokens?.accessToken;
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(options.headers as Record<string, string> ?? {}),
-  };
+  const isFormData = options.body instanceof FormData;
+
+const headers: Record<string, string> = {
+  // Don't set Content-Type for FormData — browser sets it automatically with the correct boundary
+  ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  ...(options.headers as Record<string, string> ?? {}),
+};
 
   let res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
 

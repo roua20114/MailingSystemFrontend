@@ -17,9 +17,31 @@ import DirectorInbox from "./pages/DirectorInbox";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import NotFound from "./pages/NotFound";
+import ProfessorDashboard from './pages/ProfessorDashboard';
+import { useAuth } from '@/contexts/AuthContext';
+import AdminDemands from './pages/AdminDemands';
+
 
 const queryClient = new QueryClient();
 
+function AppRoutes() {
+  const { user } = useAuth();
+  return (
+    <Routes>
+      <Route path="/" element={user?.role === 'professor' ? <ProfessorDashboard /> : <Dashboard />} />
+      <Route path="/dispatch"   element={<DirectorInbox />} />
+      <Route path="/incoming"   element={<IncomingMail />} />
+      <Route path="/outgoing"   element={<OutgoingMail />} />
+      <Route path="/internal"   element={<InternalMail />} />
+      <Route path="/tracking"   element={<MailTracking />} />
+      <Route path="/archives"   element={<Archives />} />
+      <Route path="/statistics" element={<Statistics />} />
+      <Route path="/settings"   element={<SettingsPage />} />
+      <Route path="*"           element={<NotFound />} />
+      <Route path="/demands" element={<AdminDemands />} />
+    </Routes>
+  );
+}
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -34,18 +56,9 @@ const App = () => (
               element={
                 <AuthGuard>
                   <AppLayout>
-                    <Routes>
-                      <Route path="/" element={<Dashboard />} />
-                      <Route path="/dispatch" element={<DirectorInbox />} />
-                      <Route path="/incoming" element={<IncomingMail />} />
-                      <Route path="/outgoing" element={<OutgoingMail />} />
-                      <Route path="/internal" element={<InternalMail />} />
-                      <Route path="/tracking" element={<MailTracking />} />
-                      <Route path="/archives" element={<Archives />} />
-                      <Route path="/statistics" element={<Statistics />} />
-                      <Route path="/settings" element={<SettingsPage />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
+                    <AppRoutes>
+                  
+                    </AppRoutes>
                   </AppLayout>
                 </AuthGuard>
               }

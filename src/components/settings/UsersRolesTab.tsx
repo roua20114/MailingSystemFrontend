@@ -8,11 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Shield, UserCheck, UserX, Search, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Shield, UserCheck, UserX, Search, Loader2, CheckCircle2 } from 'lucide-react';
 import { roleLabels, roleColors } from '@/lib/settings-data';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userService } from '@/lib/user-service';
+import { apiRequest } from '@/lib/api-client';
 import { departmentService } from '@/lib/department-service';
 import { formatDateTime } from '@/lib/data-helpers';
 import { TableSkeleton } from '@/components/LoadingSkeleton';
@@ -43,6 +44,85 @@ const rolePermissions: Record<UserRole, string[]> = {
   professor: ['Suivi personnel', 'Voir PDF', 'Recevoir notifications'],
   'service-lead': ['Gérer tâches', 'Mettre à jour statut', 'Voir service'],
 };
+
+
+function PendingAccountsSection() {
+  const qc = useQueryClient();
+
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['users-pending'],
+    queryFn: () =>
+      apiRequest<{ success: boolean; data: { users: any[] } }>('/users?limit=200')
+        .then(r => r.data.users),
+  });
+
+  const pending = allUsers.filter((u: any) => !u.isActive);
+
+  const activate = async (userId: string) => {
+    try {
+      await apiRequest(`/users/${userId}/activate`, { method: 'PATCH' });
+      toast.success('Compte activé avec succès');
+      qc.invalidateQueries({ queryKey: ['users-pending'] });
+      qc.invalidateQueries({ queryKey: ['users'] });
+    } catch {
+      toast.error("Erreur lors d'activation");
+    }
+  };
+
+  const reject = async (userId: string) => {
+    try {
+      await apiRequest(`/users/${userId}`, { method: 'DELETE' });
+      toast.success('Compte supprimé');
+      qc.invalidateQueries({ queryKey: ['users-pending'] });
+      qc.invalidateQueries({ queryKey: ['users'] });
+    } catch {
+      toast.error('Erreur lors de la suppression');
+    }
+  };
+
+  if (pending.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-orange-200 bg-orange-50 dark:bg-orange-950/20 p-4 mb-2">
+      <h3 className="text-sm font-semibold text-orange-700 dark:text-orange-400 mb-3 flex items-center gap-2">
+        <span className="h-2 w-2 rounded-full bg-orange-500 animate-pulse inline-block" />
+        Comptes en attente d'activation ({pending.length})
+      </h3>
+      <div className="space-y-2">
+        {pending.map((u: any) => (
+          <div
+            key={u._id}
+            className="flex items-center justify-between bg-white dark:bg-background rounded-lg border px-3 py-2.5"
+          >
+            <div>
+              <p className="text-sm font-medium">{u.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {u.email} — <span className="capitalize">{u.role}</span>
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="gap-1 bg-green-600 hover:bg-green-700 text-white h-7 text-xs"
+                onClick={() => activate(u._id)}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" /> Activer
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1 text-red-600 border-red-200 hover:bg-red-50 h-7 text-xs"
+                onClick={() => reject(u._id)}
+              >
+                <UserX className="h-3.5 w-3.5" /> Rejeter
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function UsersRolesTab() {
   const qc = useQueryClient();
@@ -131,6 +211,7 @@ export default function UsersRolesTab() {
 
   return (
     <div className="space-y-6">
+      <PendingAccountsSection />
       {/* Role Permissions Summary */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {(Object.entries(rolePermissions) as [UserRole, string[]][]).map(([role, perms]) => (

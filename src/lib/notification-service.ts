@@ -9,6 +9,7 @@ export interface ApiNotification {
   referenceNumber: string | null;
   read: boolean;
   createdAt: string;
+  demandId:string;
 }
 
 interface NotifResponse {

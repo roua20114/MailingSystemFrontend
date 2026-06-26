@@ -17,6 +17,10 @@ const TYPE_STYLE: Record<string, { dot: string; bg: string }> = {
   MAIL_ASSIGNED:     { dot: 'bg-cyan-500',   bg: 'bg-cyan-50 dark:bg-cyan-950/40' },
   MAIL_IN_PROGRESS:  { dot: 'bg-amber-500',  bg: 'bg-amber-50 dark:bg-amber-950/40' },
   MAIL_PROCESSED:    { dot: 'bg-green-500',  bg: 'bg-green-50 dark:bg-green-950/40' },
+   DEMAND_CREATED:    { dot: 'bg-orange-500', bg: 'bg-orange-50 dark:bg-orange-950/40' },   // ← add
+  DEMAND_FORWARDED:  { dot: 'bg-violet-500', bg: 'bg-violet-50 dark:bg-violet-950/40' },   // ← add
+  DEMAND_ANSWERED:   { dot: 'bg-teal-500',   bg: 'bg-teal-50 dark:bg-teal-950/40' },       // ← add
+
 };
 
 function timeAgo(iso: string) {
@@ -60,15 +64,36 @@ export function NotificationBell() {
   });
 
   const handleClickNotif = (n: ApiNotification) => {
-    if (!n.read) markOne.mutate(n._id);
-    // Navigate to the relevant page based on type
-    if (n.type === 'MAIL_ASSIGNED' || n.type === 'MAIL_IN_PROGRESS' || n.type === 'MAIL_PROCESSED') {
-      navigate('/tracking');
-    } else if (n.type === 'MAIL_REGISTERED' || n.type === 'MAIL_UNDER_REVIEW') {
-      navigate('/dispatch');
-    }
-    setOpen(false);
-  };
+  if (!n.read) markOne.mutate(n._id);
+  setOpen(false);
+
+  // ── Mail notifications ──────────────────────────────────────────────────
+  if (n.type === 'MAIL_ASSIGNED' || n.type === 'MAIL_IN_PROGRESS' || n.type === 'MAIL_PROCESSED') {
+    navigate('/tracking');
+    return;
+  }
+  if (n.type === 'MAIL_REGISTERED' || n.type === 'MAIL_UNDER_REVIEW') {
+    navigate('/dispatch');
+    return;
+  }
+
+  // ── Demand notifications ────────────────────────────────────────────────
+  if (n.type === 'DEMAND_CREATED') {
+    // Admin → go to demands management page
+    navigate('/demands');
+    return;
+  }
+  if (n.type === 'DEMAND_FORWARDED') {
+    // Director → go to demands management page, demand is highlighted by mailId
+    navigate('/demands');
+    return;
+  }
+  if (n.type === 'DEMAND_ANSWERED') {
+    // Professor → go to their dashboard (demands list)
+    navigate('/');
+    return;
+  }
+};
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
