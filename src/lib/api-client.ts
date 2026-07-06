@@ -1,5 +1,5 @@
 // Central HTTP client — attaches JWT, handles 401 auto-refresh, throws on error.
-const BASE_URL = '/api';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 function getSession(): { tokens?: { accessToken?: string; refreshToken?: string } } | null {
   try {
